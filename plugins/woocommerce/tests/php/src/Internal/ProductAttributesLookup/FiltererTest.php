@@ -2,6 +2,7 @@
 
 namespace Automattic\WooCommerce\Tests\Internal\ProductAttributesLookup;
 
+use Automattic\WooCommerce\Enums\ProductType;
 use Automattic\WooCommerce\Internal\AttributesHelper;
 use Automattic\WooCommerce\RestApi\UnitTests\Helpers\ProductHelper;
 use Automattic\WooCommerce\Utilities\ArrayUtil;
@@ -12,9 +13,17 @@ use Automattic\WooCommerce\Utilities\ArrayUtil;
 class FiltererTest extends \WC_Unit_Test_Case {
 
 	/**
+	 * Counter to insert unique SKU for concurrent tests.
+	 * The starting value ensures no conflicts between existing generators.
+	 *
+	 * @var int $sku_counter
+	 */
+	private static $sku_counter = 200000;
+
+	/**
 	 * Runs before all the tests in the class.
 	 */
-	public static function setupBeforeClass() {
+	public static function setUpBeforeClass(): void {
 		global $wpdb, $wp_post_types;
 
 		parent::setUpBeforeClass();
@@ -41,7 +50,7 @@ class FiltererTest extends \WC_Unit_Test_Case {
 	/**
 	 * Runs after each test.
 	 */
-	public function tearDown() {
+	public function tearDown(): void {
 		global $wpdb;
 
 		parent::tearDown();
@@ -62,7 +71,7 @@ class FiltererTest extends \WC_Unit_Test_Case {
 		$product_ids = wc_get_products( array( 'return' => 'ids' ) );
 		foreach ( $product_ids as $product_id ) {
 			$product     = wc_get_product( $product_id );
-			$is_variable = $product->is_type( 'variable' );
+			$is_variable = $product->is_type( ProductType::VARIABLE );
 
 			foreach ( $product->get_children() as $child_id ) {
 				$child = wc_get_product( $child_id );
@@ -161,13 +170,15 @@ class FiltererTest extends \WC_Unit_Test_Case {
 				'name'          => 'Product',
 				'regular_price' => 1,
 				'price'         => 1,
-				'sku'           => 'DUMMY SKU',
+				'sku'           => 'DUMMY SKU' . self::$sku_counter,
 				'manage_stock'  => false,
 				'tax_status'    => 'taxable',
 				'downloadable'  => false,
 				'virtual'       => false,
 			)
 		);
+
+		++self::$sku_counter;
 
 		$product->set_attributes( $attributes );
 
@@ -465,7 +476,7 @@ class FiltererTest extends \WC_Unit_Test_Case {
 		}
 
 		$term_counts = $widget->get_filtered_term_product_counts( $term_ids_by_name, $taxonomy, $filter_type );
-		$this->assertEquals( $expected, $term_counts );
+		$this->assertEqualsCanonicalizing( $expected, $term_counts );
 	}
 
 	/**
@@ -1252,7 +1263,7 @@ class FiltererTest extends \WC_Unit_Test_Case {
 
 		$filtered_product_ids = $this->do_product_request( array() );
 
-		$this->assertEquals( array( $product_simple_2->get_id(), $product_variable_2['id'] ), $filtered_product_ids );
+		$this->assertEqualsCanonicalizing( array( $product_simple_2->get_id(), $product_variable_2['id'] ), $filtered_product_ids );
 
 		$this->assert_counters( 'Color', $expected_colors_included_in_counters );
 		$this->assert_counters( 'Features', array( 'Ironable' ) );
